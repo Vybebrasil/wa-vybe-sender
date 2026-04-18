@@ -832,6 +832,42 @@
       align-items: center;
       margin-bottom: 4px;
     }
+    .caption-panel {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .panel-subtitle {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .caption-field {
+      width: 100%;
+      min-height: 80px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: var(--font);
+      line-height: 1.5;
+      resize: vertical;
+      margin-top: 10px;
+      display: none;
+      transition: all 0.2s;
+    }
+    .caption-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+      outline: none;
+    }
   </style>
 </head>
 <body>
@@ -983,7 +1019,7 @@
               <button type="button" class="msg-tbtn" id="fmtItalic" title="Itálico (_texto_)"><small>I</small></button>
               <button type="button" class="msg-tbtn" id="fmtStrike" title="Riscado (~texto~)"><span style="text-decoration:line-through;font-weight:800">S</span></button>
               <span class="msg-toolbar-spacer"></span>
-              <button type="button" class="msg-tbtn" id="btnAttach" title="Anexar imagem (será enviada como legenda)">📎</button>
+              <button type="button" class="msg-tbtn" id="btnAttach" title="Anexar imagem">📎</button>
               <button type="button" class="msg-tbtn" id="btnLoadTpl" title="Usar modelo salvo">📄</button>
               <button type="button" class="msg-tbtn" id="btnSaveTpl" title="Salvar como modelo">📄<small>+</small></button>
             </div>
@@ -1002,9 +1038,18 @@
           </div>
           <button type="button" class="attach-remove-btn" id="btnAttachRemove" title="Remover imagem">×</button>
         </div>
+        <div id="captionWrap" class="caption-panel" style="display:none;">
+          <div class="panel-subtitle">Personalizar Legenda</div>
+          <label class="anti-switch">
+            <input type="checkbox" id="chkEnableCaption" />
+            <span class="anti-slider-ui"></span>
+            <span class="anti-lbl">Enviar texto junto com a imagem</span>
+          </label>
+          <textarea id="imageCaption" class="caption-field" placeholder="Escreva aqui a legenda da imagem..."></textarea>
+        </div>
         <p class="hint" style="margin-top:8px">
           Formatação do WhatsApp no texto: <code>*negrito*</code> <code>_itálico_</code> <code>~riscado~</code>.
-          <br/>📎 Com imagem: o texto vira a <strong>legenda</strong> da imagem.
+          <br/>📎 Com imagem: a imagem é enviada logo após o texto.
         </p>
       </div>
 

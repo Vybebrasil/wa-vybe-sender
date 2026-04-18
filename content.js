@@ -19,6 +19,8 @@ const K = {
   antiIntervalOn: "wppAntiIntervalOn",
   batchCount: "wppBatchSentInBlock",
   pendingAttachment: "wppPendingAttachment",
+  imageCaption: "wppImageCaption",
+  enableCaption: "wppEnableCaption",
 };
 
 const NAV_PENDING_TTL_MS = 60000;
@@ -142,6 +144,21 @@ function gaussianRandom(mean, stdev) {
   const v = Math.random();
   const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   return z * stdev + mean;
+}
+
+/** Simula evento de clique completo para evitar bloqueios de UI */
+function dispatchSyntheticClick(el) {
+  if (!el) return;
+  ["mousedown", "mouseup", "click"].forEach((name) => {
+    el.dispatchEvent(new MouseEvent(name, { bubbles: true, cancelable: true, view: window }));
+  });
+}
+
+/** Simula foco e scroll antes da interação */
+async function simulateMouseToElement(el) {
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  await delay(200);
 }
 
 async function delayShortHuman() {
@@ -626,10 +643,29 @@ async function waitForMediaPreview(timeoutMs = 15000) {
  * Retorna o campo de legenda do preview.
  */
 function findCaptionField() {
+  // 1. Container oficial pelo data-testid
+  const container = document.querySelector('[data-testid="media-caption-input-container"]');
+  if (container) {
+    const edit = container.querySelector('div[contenteditable="true"]');
+    if (edit) return edit;
+  }
+
+  // 2. Tenta localizar pelo span lexical que o usuário forneceu
+  const lexicalSpan = document.querySelector('span[data-lexical-text="true"]');
+  if (lexicalSpan) {
+    const parentEditable = lexicalSpan.closest('div[contenteditable="true"]');
+    if (parentEditable && parentEditable.offsetParent) return parentEditable;
+  }
+
+  // 3. Fallback: Busca genérica por atributos e restrições de localização
   return [...document.querySelectorAll('div[contenteditable="true"]')].find((el) => {
-    if (!el.offsetParent || el.closest("footer") || el.closest("#main")) return false;
+    if (!el.offsetParent) return false;
+    // O campo de legenda do preview nunca está no footer ou no chat principal (#main)
+    if (el.closest("footer") || el.closest("#main")) return false;
+
     const lab = (el.getAttribute("aria-label") || "").toLowerCase();
-    return /legenda|caption|adicione|add a/i.test(lab);
+    const ph = (el.getAttribute("placeholder") || "").toLowerCase();
+    return /legenda|caption|adicione|add|type/i.test(lab) || /legenda|caption/i.test(ph);
   }) || null;
 }
 
@@ -640,12 +676,14 @@ function findPreviewSendButton() {
   const previewSend = document.querySelector('[data-testid="media-caption-send-button"]');
   if (previewSend && previewSend.offsetParent) return previewSend;
 
-  const candidates = [...document.querySelectorAll('[data-testid="send"], span[data-icon="send"], span[data-icon="wds-ic-send-filled"]')]
+  // Seletores alternativos de ícone ou tid
+  const candidates = [...document.querySelectorAll('[data-testid="send"], [data-testid="compose-btn-send"], [data-icon="send"]')]
     .map(el => el.closest('button') || el.closest('[role="button"]') || el)
     .filter(btn => {
       if (!btn || !btn.offsetParent) return false;
       const rect = btn.getBoundingClientRect();
-      return !btn.closest("footer") && rect.width > 20;
+      // Em preview, o botão fica centralizado ou à direita, mas nunca no rodapé principal (#main)
+      return !btn.closest("footer") && !btn.closest("#main") && rect.width > 20;
     });
 
   return candidates[0] || null;
@@ -727,25 +765,46 @@ async function sendImageWithCaption(attData, captionText) {
       }
     }
 
-    // Se tiver que enviar legenda junto aqui
+    await delay(1200); // Tempo para o WhatsApp abrir o modal e focar o campo de legenda sozinho
+
+    // Pega o que o WhatsApp focar automaticamente (geralmente a caixa de legenda)
+    let focusTarget = document.activeElement;
+
+    // Se ele não focou sozinho (raro), tentamos caçar manual
+    if (!focusTarget || focusTarget.tagName === "BODY") {
+      focusTarget = findCaptionField();
+      if (focusTarget) focusTarget.focus();
+    }
+
+    // Se tem legenda, usa Ctrl+V simulado no alvo focado
     if (captionText && captionText.trim()) {
-      await delay(500);
-      const field = findCaptionField();
-      if (field) {
-        await simulateTypingStatus(field, captionText);
-        await pasteMessageInto(field, captionText);
-        await appendLog("info", "Legenda da imagem inserida.");
+      if (focusTarget) {
+        await pasteMessageInto(focusTarget, captionText);
+        await appendLog("info", "Legenda colada no preview.");
+      } else {
+        await appendLog("warn", "Campo não ativado para legenda. Enviando sem legenda...");
       }
     }
 
     await delay(800);
-    const sendBtn = findPreviewSendButton();
-    if (!sendBtn) {
-      throw new Error("Botão de enviar do preview sumiu.");
+    
+    // Tenta enviar com Enter no campo focado
+    if (focusTarget) {
+      await appendLog("info", "Apertando Enter para disparar anexos...");
+      const enterDown = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter", code: "Enter", keyCode: 13, which: 13 });
+      focusTarget.dispatchEvent(enterDown);
+      
+      await delay(100);
+      
+      const enterUp = new KeyboardEvent("keyup", { bubbles: true, cancelable: true, key: "Enter", code: "Enter", keyCode: 13, which: 13 });
+      focusTarget.dispatchEvent(enterUp);
+    } else {
+      // Fallback extremo
+      const sendBtn = findPreviewSendButton();
+      if (!sendBtn) throw new Error("Botão de enviar ausente e campo também.");
+      await simulateMouseToElement(sendBtn);
+      dispatchSyntheticClick(sendBtn);
     }
-
-    await simulateMouseToElement(sendBtn);
-    dispatchSyntheticClick(sendBtn);
     
     const tEnd = Date.now();
     while (isMediaPreviewVisible() && Date.now() - tEnd < 5000) await delay(500);
@@ -758,6 +817,7 @@ async function sendImageWithCaption(attData, captionText) {
     return false;
   }
 }
+
 
 
 /**
@@ -1049,11 +1109,13 @@ async function runOneContactCore() {
   }
 
   // 2. Enviar a imagem (se houver anexo)
-  const attData = await safeLocalGet([K.pendingAttachment]);
+  const attData = await safeLocalGet([K.pendingAttachment, K.enableCaption, K.imageCaption]);
   const att = attData[K.pendingAttachment];
+  const useCaption = !!attData[K.enableCaption];
+  const caption = useCaption ? (attData[K.imageCaption] || "") : "";
 
   if (att && att.dataUrl) {
-    const imgSent = await sendImageWithCaption(att, ""); // Envia sem legenda, já que o texto foi antes
+    const imgSent = await sendImageWithCaption(att, caption); 
     if (!imgSent) {
       await appendLog("err", `Falha ao enviar imagem para ${row.phone}.`);
       await recordResult(row.phone, row.name, "Falha");

@@ -21,6 +21,8 @@ const STORAGE_KEYS = {
   batchCount: "wppBatchSentInBlock",
   messageTemplates: "wppMessageTemplates",
   pendingAttachment: "wppPendingAttachment",
+  imageCaption: "wppImageCaption",
+  enableCaption: "wppEnableCaption",
 };
 
 const EMOJI_PALETTE =
@@ -440,6 +442,13 @@ async function loadUiFromStorage() {
 
   // Restaurar preview do anexo se houver imagem salva
   await refreshAttachPreview();
+
+  // Restaurar legenda
+  if ($("imageCaption")) $("imageCaption").value = data[STORAGE_KEYS.imageCaption] || "";
+  if ($("chkEnableCaption")) {
+    $("chkEnableCaption").checked = !!data[STORAGE_KEYS.enableCaption];
+    if (data[STORAGE_KEYS.enableCaption]) $("imageCaption").style.display = "block";
+  }
 }
 
 async function findWhatsAppTab() {
@@ -780,18 +789,35 @@ async function refreshAttachPreview() {
   const thumb = $("attachThumb");
   const nameEl = $("attachName");
   const sizeEl = $("attachSize");
+  const capWrap = $("captionWrap");
+
   if (!wrap) return;
   if (att && att.dataUrl) {
     thumb.src = att.dataUrl;
     nameEl.textContent = att.name || "imagem";
     sizeEl.textContent = att.size ? formatFileSize(att.size) : "";
     wrap.classList.add("has-image");
+    if (capWrap) capWrap.style.display = "block";
   } else {
     thumb.src = "";
     nameEl.textContent = "";
     sizeEl.textContent = "";
     wrap.classList.remove("has-image");
+    if (capWrap) capWrap.style.display = "none";
   }
+}
+
+function initImageCaption() {
+  $("chkEnableCaption")?.addEventListener("change", (e) => {
+    const enabled = e.target.checked;
+    const field = $("imageCaption");
+    if (field) field.style.display = enabled ? "block" : "none";
+    chrome.storage.local.set({ [STORAGE_KEYS.enableCaption]: enabled });
+  });
+
+  $("imageCaption")?.addEventListener("input", (e) => {
+    chrome.storage.local.set({ [STORAGE_KEYS.imageCaption]: e.target.value });
+  });
 }
 
 async function clearAttachment() {
@@ -995,6 +1021,7 @@ if (document.readyState === "loading") {
     initAntiblockPanel();
     initMessageComposer();
     initAttachmentButton();
+    initImageCaption();
     initCsvImport();
     loadUiFromStorage();
   });
@@ -1003,6 +1030,7 @@ if (document.readyState === "loading") {
   initAntiblockPanel();
   initMessageComposer();
   initAttachmentButton();
+  initImageCaption();
   initCsvImport();
   loadUiFromStorage();
 }
