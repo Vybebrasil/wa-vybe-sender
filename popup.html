@@ -20,6 +20,41 @@
       --radius: 12px;
       --font: "Segoe UI", system-ui, -apple-system, sans-serif;
     }
+    @media (prefers-color-scheme: light) {
+      body:not(.dark-theme) {
+        --bg: #efeae2;
+        --surface: #ffffff;
+        --surface2: #f0f2f5;
+        --border: #d1d7db;
+        --text: #111b21;
+        --muted: #667781;
+        --accent: #00a884;
+        --accent-rgb: 0, 168, 132;
+        --accent-dim: #008069;
+      }
+    }
+    body.light-theme {
+        --bg: #efeae2;
+        --surface: #ffffff;
+        --surface2: #f0f2f5;
+        --border: #d1d7db;
+        --text: #111b21;
+        --muted: #667781;
+        --accent: #00a884;
+        --accent-rgb: 0, 168, 132;
+        --accent-dim: #008069;
+    }
+    body.dark-theme {
+      --bg: #0c0f14;
+      --surface: #151b24;
+      --surface2: #1e2733;
+      --border: #2a3544;
+      --text: #eef2f7;
+      --muted: #8b9aad;
+      --accent: #25d366;
+      --accent-rgb: 37, 211, 102;
+      --accent-dim: #1eb85a;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -120,8 +155,26 @@
       height: 100%;
       width: 0%;
       background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+      background-size: 30px 30px;
       border-radius: 999px;
       transition: width 0.35s ease;
+    }
+    .status-pill.running ~ .panel .progress-fill, .progress-fill.animating {
+      background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%,
+        transparent 75%,
+        transparent
+      );
+      animation: progressStripes 1s linear infinite;
+    }
+    @keyframes progressStripes {
+      0% { background-position: 0 0; }
+      100% { background-position: 30px 0; }
     }
     /* ——— Antibloqueio ——— */
     .anti-panel {
@@ -832,6 +885,11 @@
       align-items: center;
       margin-bottom: 4px;
     }
+    .field-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
     .caption-panel {
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid var(--border);
@@ -868,10 +926,70 @@
       box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
       outline: none;
     }
+    
+    @keyframes pulseStart {
+      0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.5); }
+      70% { box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0); }
+      100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+    }
+    #btnStart:not(:disabled):hover {
+      animation: pulseStart 1.5s infinite;
+    }
+
+    .live-preview-wrap {
+      display: flex;
+      justify-content: flex-end;
+      padding: 8px 4px 2px;
+    }
+    .live-preview-bubble {
+      position: relative;
+      background: #005c4b;
+      color: #e9edef;
+      border-radius: 7px 0 7px 7px;
+      padding: 6px 8px 8px 9px;
+      font-size: 13.5px;
+      font-family: "Segoe UI", "SF Pro Text", Helvetica, sans-serif;
+      line-height: 1.35;
+      max-width: 90%;
+      word-wrap: break-word;
+      box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+    }
+    @media (prefers-color-scheme: light) {
+      body:not(.dark-theme) .live-preview-bubble { background: #d9fdd3; color: #111b21; }
+      body:not(.dark-theme) .anti-panel { background: linear-gradient(165deg, rgba(0, 168, 132, 0.05) 0%, var(--surface) 38%); }
+      body:not(.dark-theme) .header { background: linear-gradient(180deg, rgba(0, 168, 132, 0.08) 0%, var(--surface) 100%); }
+      body:not(.dark-theme) .anti-pill.active { color: #fff; }
+    }
+    body.light-theme .live-preview-bubble { background: #d9fdd3; color: #111b21; }
+    body.light-theme .anti-panel { background: linear-gradient(165deg, rgba(0, 168, 132, 0.05) 0%, var(--surface) 38%); }
+    body.light-theme .header { background: linear-gradient(180deg, rgba(0, 168, 132, 0.08) 0%, var(--surface) 100%); }
+    body.light-theme .anti-pill.active { color: #fff; }
+    
+    .theme-btn {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      background: rgba(139, 154, 173, 0.15);
+      border: none;
+      color: var(--text);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    .theme-btn:hover {
+      background: rgba(139, 154, 173, 0.3);
+    }
   </style>
 </head>
 <body>
-  <header class="header">
+  <header class="header" style="position: relative;">
+    <button type="button" class="theme-btn" id="btnThemeToggle" title="Alternar Modo Escuro/Claro">🌓</button>
     <h1>Disparador WhatsApp</h1>
     <p>Dashboard profissional · ritmo humano · relatório exportável</p>
     <span class="badge">Pro Suite</span>
@@ -969,9 +1087,14 @@
     <section class="panel">
       <div class="field-header-row">
         <span class="phone-field-label">Números</span>
-        <button type="button" class="import-csv-btn" id="btnImportCsv">
-          <span class="import-icon">📥</span> Importar CSV
-        </button>
+        <div class="field-actions">
+          <button type="button" class="import-csv-btn" id="btnDownloadTemplate" style="opacity: 0.8; border-style: dashed;" title="Baixar modelo de exemplo">
+            <span class="import-icon">📄</span> Modelo
+          </button>
+          <button type="button" class="import-csv-btn" id="btnImportCsv">
+            <span class="import-icon">📥</span> Importar CSV
+          </button>
+        </div>
         <input type="file" id="csvInput" accept=".csv" style="display:none" />
       </div>
       <div class="phone-input-wrap">
@@ -1006,7 +1129,7 @@
         <div class="msg-composer-pos">
           <div class="msg-composer">
             <div class="msg-composer-top">
-              <button type="button" class="msg-icon-btn" id="btnPreviewMsg" title="Pré-visualizar">👁</button>
+              <span class="panel-subtitle" style="margin:0; opacity:0.7">Editor de Mensagem</span>
             </div>
             <textarea
               id="message"
@@ -1025,6 +1148,14 @@
             </div>
             <input type="file" id="attachInput" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" />
           </div>
+          
+          <div class="live-preview-wrap" id="livePreviewWrap" style="display:none;">
+            <div class="live-preview-bubble">
+              <div class="bubble-tail"></div>
+              <div id="livePreviewContent" class="bubble-text">Aqui aparece o preview em tempo real...</div>
+            </div>
+          </div>
+
           <div class="msg-popover" id="emojiPopover" aria-label="Emojis">
             <div class="msg-popover-grid" id="emojiGrid"></div>
           </div>
@@ -1048,18 +1179,11 @@
           <textarea id="imageCaption" class="caption-field" placeholder="Escreva aqui a legenda da imagem..."></textarea>
         </div>
         <p class="hint" style="margin-top:8px">
-          Formatação do WhatsApp no texto: <code>*negrito*</code> <code>_itálico_</code> <code>~riscado~</code>.
-          <br/>📎 Com imagem: a imagem é enviada logo após o texto.
+          💡 <strong>Dica de Antibloqueio (SpinTax):</strong> Use chaves para variar a mensagem. 
+          <br/>Exemplo: <code>{Olá|Oi|Tudo bem?}</code> fará cada contato receber uma dessas opções.
         </p>
       </div>
 
-      <div class="msg-modal-backdrop" id="previewBackdrop" role="dialog" aria-modal="true">
-        <div class="msg-modal">
-          <button type="button" class="msg-modal-close" data-close="preview" aria-label="Fechar">×</button>
-          <h3>Pré-visualização (WhatsApp)</h3>
-          <div class="msg-preview-body" id="previewBody"></div>
-        </div>
-      </div>
       <div class="msg-modal-backdrop" id="tplBackdrop" role="dialog" aria-modal="true">
         <div class="msg-modal">
           <button type="button" class="msg-modal-close" data-close="tpl" aria-label="Fechar">×</button>

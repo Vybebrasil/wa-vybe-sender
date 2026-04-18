@@ -23,6 +23,7 @@ const STORAGE_KEYS = {
   pendingAttachment: "wppPendingAttachment",
   imageCaption: "wppImageCaption",
   enableCaption: "wppEnableCaption",
+  theme: "wppTheme",
 };
 
 const EMOJI_PALETTE =
@@ -449,7 +450,36 @@ async function loadUiFromStorage() {
     $("chkEnableCaption").checked = !!data[STORAGE_KEYS.enableCaption];
     if (data[STORAGE_KEYS.enableCaption]) $("imageCaption").style.display = "block";
   }
+
+  // Restaurar Tema
+  if (data[STORAGE_KEYS.theme]) applyThemeState(data[STORAGE_KEYS.theme]);
 }
+
+function applyThemeState(themeStr) {
+  if (themeStr === "light") {
+    document.body.classList.add("light-theme");
+    document.body.classList.remove("dark-theme");
+  } else if (themeStr === "dark") {
+    document.body.classList.add("dark-theme");
+    document.body.classList.remove("light-theme");
+  }
+}
+
+function initThemeToggle() {
+  $("btnThemeToggle")?.addEventListener("click", () => {
+    const isLightSystem = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+    const isForcedLight = document.body.classList.contains("light-theme");
+    const isForcedDark = document.body.classList.contains("dark-theme");
+    
+    // Determina o estado atual "real" da interface
+    const currentlyLight = isForcedLight || (!isForcedDark && isLightSystem);
+    
+    const newTheme = currentlyLight ? "dark" : "light";
+    applyThemeState(newTheme);
+    chrome.storage.local.set({ [STORAGE_KEYS.theme]: newTheme });
+  });
+}
+
 
 async function findWhatsAppTab() {
   const byPattern = await chrome.tabs.query({ url: "https://web.whatsapp.com/*" });
@@ -692,18 +722,40 @@ function initMessageComposer() {
   $("fmtItalic")?.addEventListener("click", () => insertAroundSelection("_", "_"));
   $("fmtStrike")?.addEventListener("click", () => insertAroundSelection("~", "~"));
 
-  $("btnPreviewMsg")?.addEventListener("click", () => {
-    const body = $("previewBody");
+  const updateLivePreview = () => {
     const ta = $("message");
-    if (body && ta) {
-      body.innerHTML = renderPreviewHtml(ta.value);
-      $("previewBackdrop")?.classList.add("open");
+    const wrap = $("livePreviewWrap");
+    const content = $("livePreviewContent");
+    if (!ta || !wrap || !content) return;
+    
+    let val = ta.value.trim();
+    if (!val) {
+      wrap.style.display = "none";
+      return;
     }
-  });
+    
+    // Simula uma das variações do SpinTax no Preview (pega sempre o primeiro)
+    val = val.replace(/\{([^{}]+)\}/g, (match, p1) => {
+      if (p1.toLowerCase() === "nome") return "João";
+      const opts = p1.split("|");
+      return opts[0]; 
+    });
+    
+    content.innerHTML = renderPreviewHtml(val);
+    wrap.style.display = "flex";
+  };
 
-  $("previewBackdrop")?.addEventListener("click", (e) => {
-    if (e.target === $("previewBackdrop")) $("previewBackdrop")?.classList.remove("open");
-  });
+  const msbBox = $("message");
+  if (msbBox) {
+    msbBox.addEventListener("input", updateLivePreview);
+    // Atualizar também nos botões de formatação
+    ["fmtBold", "fmtItalic", "fmtStrike", "btnEmoji"].forEach(id => {
+      $(id)?.addEventListener("click", () => setTimeout(updateLivePreview, 10));
+    });
+    // Trigger inicial
+    setTimeout(updateLivePreview, 100);
+  }
+
 
   $("btnEmoji")?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -866,11 +918,25 @@ function initAttachmentButton() {
 
 function initCsvImport() {
   const btn = $("btnImportCsv");
+  const btnTpl = $("btnDownloadTemplate");
   const input = $("csvInput");
   const area = $("numbers");
-  if (!btn || !input || !area) return;
+  if (!input || !area) return;
 
-  btn.addEventListener("click", () => input.click());
+  btnTpl?.addEventListener("click", () => {
+    const csvContent = "telefone,nome\n5511999999999,Joao Silva\n5521988888888,Maria Souza";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_disparo_vybe.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+
+  btn?.addEventListener("click", () => input.click());
 
   input.addEventListener("change", (e) => {
     const file = e.target.files[0];
@@ -1023,6 +1089,7 @@ if (document.readyState === "loading") {
     initAttachmentButton();
     initImageCaption();
     initCsvImport();
+    initThemeToggle();
     loadUiFromStorage();
   });
 } else {
@@ -1032,5 +1099,6 @@ if (document.readyState === "loading") {
   initAttachmentButton();
   initImageCaption();
   initCsvImport();
+  initThemeToggle();
   loadUiFromStorage();
 }
