@@ -553,6 +553,316 @@ function dataUrlToFile(dataUrl, fileName, mime) {
 }
 
 /**
+ * Injeta um File num input[type=file] usando o native setter do prototype.
+ * Necessário para acionar os handlers internos do React do WhatsApp Web.
+ */
+function injectFileNative(fileInput, file) {
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  const nativeSetter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype, "files"
+  )?.set;
+  if (nativeSetter) {
+    nativeSetter.call(fileInput, dt.files);
+  } else {
+    try {
+      Object.defineProperty(fileInput, "files", {
+        value: dt.files, configurable: true,
+      });
+    } catch { /* ignora */ }
+  }
+  fileInput.dispatchEvent(new Event("input",  { bubbles: true }));
+  fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * Verifica se o preview de mídia do WhatsApp está visível na tela.
+ * Critério: imagem blob grande e visível, ou campo de legenda específico.
+ */
+function isMediaPreviewVisible() {
+  // Campo de legenda com aria-label específico do preview
+  const captionEl = [...document.querySelectorAll('div[contenteditable="true"]')].find((el) => {
+    const lab = (el.getAttribute("aria-label") || "").toLowerCase();
+    return /caption|legenda|adicione uma legenda|add a caption/i.test(lab) && el.offsetParent !== null;
+  });
+  if (captionEl) return true;
+
+  // Imagem blob grande no centro da tela (preview de mídia)
+  const blobs = [...document.querySelectorAll('img[src^="blob:"]')].filter((img) => {
+    if (!img.offsetParent) return false;
+    const r = img.getBoundingClientRect();
+    return r.width > 80 && r.height > 80;
+  });
+  return blobs.length > 0;
+}
+
+/**
+ * Aguarda o preview de mídia do WhatsApp aparecer.
+ * Retorna true se abriu, false se timeout.
+ */
+async function waitForMediaPreview(timeoutMs = 18000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    if (!isExtensionContextAlive()) return false;
+    if (isMediaPreviewVisible()) return true;
+    await delay(300);
+  }
+  return false;
+}
+
+/**
+ * Retorna o campo de legenda do preview de mídia.
+ * Deve ser chamado DEPOIS de waitForMediaPreview retornar true.
+ */
+function findCaptionField() {
+  // Buscar pelo aria-label do campo de legenda do WA (PT e EN)
+  const byLabel = [...document.querySelectorAll('div[contenteditable="true"]')].find((el) => {
+    const lab = (el.getAttribute("aria-label") || "").toLowerCase();
+    return /caption|legenda|adicione uma legenda|add a caption/i.test(lab) && el.offsetParent !== null;
+  });
+  if (byLabel) return byLabel;
+
+  // Buscar dentro da área do preview (próximo a imgs blob)
+  const blobs = [...document.querySelectorAll('img[src^="blob:"]')]
+    .filter((img) => img.offsetParent !== null && img.getBoundingClientRect().width > 80);
+  for (const img of blobs) {
+    // Subir até encontrar um container e buscar um contenteditable irmão/filho
+    let el = img.parentElement;
+    for (let d = 0; d < 15 && el; d++) {
+      const found = el.querySelector('div[contenteditable="true"]');
+      if (found && found.offsetParent !== null) return found;
+      el = el.parentElement;
+    }
+  }
+  return null;
+}
+
+/**
+ * Localiza o botão Enviar do preview de mídia (FAB verde no canto inferior direito).
+ */
+function findPreviewSendButton() {
+  for (const sel of [
+    '[data-testid="media-caption-send-button"]',
+    '[data-testid="send"]',
+  ]) {
+    const el = document.querySelector(sel);
+    if (el && el.offsetParent !== null) {
+      const btn = el.closest("button") || el.closest('div[role="button"]') || el;
+      const r = btn.getBoundingClientRect();
+      if (r.width > 4 && r.height > 4) return btn;
+    }
+  }
+  // Buscar pelo ícone de enviar dentro de qualquer botão visível
+  for (const iconName of ["send", "wds-ic-send-filled", "wds-ic-send"]) {
+    const sp = document.querySelector(`span[data-icon="${iconName}"]`);
+    if (!sp) continue;
+    const btn = sp.closest("button") || sp.closest('div[role="button"]');
+    if (btn && btn.offsetParent !== null) {
+      const r = btn.getBoundingClientRect();
+      if (r.width > 4 && r.height > 4) return btn;
+    }
+  }
+  // Fallback posicional: botão mais à direita e abaixo (FAB do preview)
+  const candidates = [...document.querySelectorAll('button, div[role="button"]')].filter((b) => {
+    if (!b.offsetParent) return false;
+    const r = b.getBoundingClientRect();
+    return r.right > window.innerWidth * 0.55 && r.bottom > window.innerHeight * 0.55
+      && r.width > 28 && r.height > 28;
+  });
+  if (!candidates.length) return null;
+  return candidates.reduce((best, b) => {
+    const rb = b.getBoundingClientRect(), rBest = best.getBoundingClientRect();
+    return (rb.right + rb.bottom) > (rBest.right + rBest.bottom) ? b : best;
+  });
+}
+
+/**
+ * Localiza o botão (+) de anexo no rodapé.
+ */
+function findPlusButton() {
+  const footer = document.querySelector("footer");
+  if (!footer) return null;
+  for (const sel of [
+    '[data-testid="clip"]',
+    '[data-testid="attach-menu-plus"]',
+    'span[data-icon="clip"]',
+    'span[data-icon="plus-rounded"]',
+    'span[data-icon="plus"]',
+  ]) {
+    const sp = footer.querySelector(sel);
+    const btn = sp?.closest("button") || sp?.closest('div[role="button"]');
+    if (btn && btn.offsetParent !== null) return btn;
+  }
+  for (const b of footer.querySelectorAll('button, div[role="button"]')) {
+    const a = (b.getAttribute("aria-label") || "").toLowerCase();
+    if ((a.includes("anexar") || a.includes("attach") || a.includes("clip")) && b.offsetParent !== null) {
+      return b;
+    }
+  }
+  return null;
+}
+
+/**
+ * Envia a imagem com legenda de texto para o contato atual.
+ *
+ * Técnica: intercepta temporariamente HTMLInputElement.prototype.click.
+ * Quando o WA chama input.click() internamente ao clicar no menu "Fotos e vídeos",
+ * o interceptor captura esse input e injeta o arquivo com o native setter,
+ * eliminando a necessidade de abrir o seletor de arquivo nativo do OS.
+ */
+async function sendImageWithCaption(attData, captionText) {
+  await appendLog("info", "Preparando envio de imagem com legenda...");
+  const file = dataUrlToFile(attData.dataUrl, attData.name, attData.mime);
+
+  // ── Passo 1: Interceptar input.click() ──
+  let intercepted = false;
+  const originalClick = HTMLInputElement.prototype.click;
+  HTMLInputElement.prototype.click = function () {
+    const accept = (this.getAttribute("accept") || "").toLowerCase();
+    const isPhotoInput =
+      this.type === "file" &&
+      (accept.includes("image") || accept.includes("video") || accept.includes("mp4"));
+    if (isPhotoInput && !intercepted) {
+      intercepted = true;
+      HTMLInputElement.prototype.click = originalClick; // restaurar imediatamente
+      injectFileNative(this, file);
+      return; // não abre o seletor de arquivo nativo
+    }
+    originalClick.call(this);
+  };
+
+  // ── Passo 2: Abrir menu (+) ──
+  const plusBtn = findPlusButton();
+  if (!plusBtn) {
+    HTMLInputElement.prototype.click = originalClick;
+    await appendLog("err", "Botão de anexo (+) não encontrado no rodapé do WhatsApp.");
+    return false;
+  }
+
+  plusBtn.click();
+  await delay(600 + Math.random() * 200);
+
+  // ── Passo 3: Clicar no item de menu "Fotos e vídeos" ──
+  // Isso acionará input.click() internamente, que será interceptado acima.
+  let menuItemClicked = false;
+  const menu = document.querySelector('[role="menu"]') || document.querySelector('[data-testid="attach-menu"]');
+  if (menu) {
+    const photoLabel = /foto|photo|image|imagem|v[ií]deo|video/i;
+    const items = [
+      ...menu.querySelectorAll('[role="menuitem"]'),
+      ...menu.querySelectorAll("li"),
+      ...menu.querySelectorAll("button"),
+    ];
+    for (const item of items) {
+      if (!photoLabel.test(item.textContent || "")) continue;
+      item.click();
+      menuItemClicked = true;
+      break;
+    }
+  }
+
+  // Se não encontrou item no menu, aguardar um pouco e tentar clicar no menu entry diretamente
+  if (!menuItemClicked) {
+    await delay(400);
+    // Tentar encontrar inputs de foto no DOM e clicar neles diretamente
+    const footer = document.querySelector("footer");
+    const inputs = [...(footer || document).querySelectorAll('input[type="file"]')];
+    const photoInput = inputs.find((i) => {
+      const a = (i.getAttribute("accept") || "").toLowerCase();
+      return a.includes("image") && !a.endsWith(".webp");
+    });
+    if (photoInput) {
+      photoInput.click(); // será interceptado
+    }
+  }
+
+  // Aguardar a intercepção acontecer (max 3s)
+  const tIntercept = Date.now();
+  while (!intercepted && Date.now() - tIntercept < 3000) {
+    await delay(100);
+  }
+
+  // Restaurar o prototype caso a intercepção não tenha ocorrido
+  if (!intercepted) {
+    HTMLInputElement.prototype.click = originalClick;
+    await appendLog("warn", "Intercepção do input não ocorreu. Tentando injeção direta...");
+    // Injeção direta como último recurso
+    const footer = document.querySelector("footer");
+    const inputs = [...(footer || document).querySelectorAll('input[type="file"]')];
+    const photoInput = inputs.find((i) => {
+      const a = (i.getAttribute("accept") || "").toLowerCase();
+      return a.includes("image") && !a.includes("webp");
+    }) || inputs[0];
+    if (photoInput) {
+      injectFileNative(photoInput, file);
+    } else {
+      await appendLog("err", "Não foi possível localizar o input de arquivo do WhatsApp.");
+      return false;
+    }
+  }
+
+  await appendLog("info", `Imagem "${file.name}" injetada. Aguardando preview...`);
+
+  // ── Passo 4: Aguardar preview de mídia ──
+  const previewOpened = await waitForMediaPreview(18000);
+  if (!previewOpened) {
+    await appendLog("err", "Preview de mídia não abriu após injeção do arquivo.");
+    return false;
+  }
+  await appendLog("info", "Preview de mídia aberto.");
+
+  // ── Passo 5: Inserir legenda ──
+  if (captionText && captionText.trim()) {
+    await delay(400 + Math.random() * 200);
+    const captionField = findCaptionField();
+    if (captionField) {
+      try {
+        await pasteMessageInto(captionField, captionText);
+        await appendLog("info", "Legenda inserida no preview.");
+      } catch (e) {
+        await appendLog("warn", `Falha ao inserir legenda: ${e?.message || e}`);
+      }
+      await delay(400 + Math.random() * 200);
+    } else {
+      await appendLog("warn", "Campo de legenda não encontrado — imagem sem texto.");
+    }
+  }
+
+  // ── Passo 6: Clicar em Enviar ──
+  let sendBtn = findPreviewSendButton();
+  if (!sendBtn) {
+    const tSend = Date.now();
+    while (Date.now() - tSend < 10000) {
+      sendBtn = findPreviewSendButton();
+      if (sendBtn) break;
+      await delay(300);
+    }
+  }
+  if (!sendBtn) {
+    await appendLog("err", "Botão Enviar não encontrado no preview da imagem.");
+    return false;
+  }
+
+  await simulateMouseToElement(sendBtn);
+  await delay(80 + Math.random() * 80);
+  dispatchSyntheticClick(sendBtn);
+  await delay(2000 + Math.random() * 600);
+
+  // Segunda tentativa caso ainda esteja aberto
+  if (isMediaPreviewVisible()) {
+    const btn2 = findPreviewSendButton();
+    if (btn2) {
+      dispatchSyntheticClick(btn2);
+      await delay(1500 + Math.random() * 400);
+    }
+  }
+
+  await appendLog("info", "Imagem enviada com sucesso.");
+  return true;
+}
+
+
+/**
  * Injeta um arquivo em um input[type=file] usando o native setter do prototype,
  * que é a única forma de acionar os handlers internos do React no WhatsApp.
  */
