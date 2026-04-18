@@ -48,6 +48,9 @@ const ANTIBLOCK_PRESETS = {
     intervalOn: true,
     minSec: 5,
     maxSec: 15,
+    "--accent": "#25d366",
+    "--accent-rgb": "37, 211, 102",
+    "--accent-dim": "#1eb85a",
   },
   fast: {
     blocks: false,
@@ -835,6 +838,50 @@ function initAttachmentButton() {
   });
 }
 
+function initCsvImport() {
+  const btn = $("btnImportCsv");
+  const input = $("csvInput");
+  const area = $("numbers");
+  if (!btn || !input || !area) return;
+
+  btn.addEventListener("click", () => input.click());
+
+  input.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target.result || "";
+      const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const newContacts = [];
+      
+      lines.forEach((line, i) => {
+        // Tenta detectar delimitador , ou ;
+        const parts = line.includes(";") ? line.split(";") : line.split(",");
+        let phone = parts[0].replace(/\D/g, "");
+        let name = parts[1] ? parts[1].trim() : "";
+
+        // Se a primeira linha parece cabeçalho (telefone não numérico), pula
+        if (i === 0 && phone.length < 5) return;
+
+        if (phone.length >= 8) {
+          newContacts.push(name ? `${phone}, ${name}` : phone);
+        }
+      });
+
+      if (newContacts.length > 0) {
+        const current = area.value.trim();
+        area.value = current ? current + "\n" + newContacts.join("\n") : newContacts.join("\n");
+        // Disparar evento para atualizar contagem no popup
+        area.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      input.value = ""; // Reset
+    };
+    reader.readAsText(file);
+  });
+}
+
 function initAntiblockPanel() {
   $("antiToggleDetail")?.addEventListener("click", () => {
     const det = $("antiDetails");
@@ -948,6 +995,7 @@ if (document.readyState === "loading") {
     initAntiblockPanel();
     initMessageComposer();
     initAttachmentButton();
+    initCsvImport();
     loadUiFromStorage();
   });
 } else {
@@ -955,5 +1003,6 @@ if (document.readyState === "loading") {
   initAntiblockPanel();
   initMessageComposer();
   initAttachmentButton();
+  initCsvImport();
   loadUiFromStorage();
 }

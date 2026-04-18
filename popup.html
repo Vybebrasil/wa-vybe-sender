@@ -13,6 +13,7 @@
       --text: #eef2f7;
       --muted: #8b9aad;
       --accent: #25d366;
+      --accent-rgb: 37, 211, 102;
       --accent-dim: #1eb85a;
       --danger: #f87171;
       --warn: #fbbf24;
@@ -806,6 +807,31 @@
     }
     .attach-remove-btn:hover { background: rgba(248, 113, 113, 0.22); }
     #attachInput { display: none; }
+    .import-csv-btn {
+      background: none;
+      border: 1px solid rgba(var(--accent-rgb), 0.3);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+      margin-bottom: 4px;
+    }
+    .import-csv-btn:hover {
+      background: rgba(var(--accent-rgb), 0.1);
+      border-color: var(--accent);
+    }
+    .field-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
   </style>
 </head>
 <body>
@@ -905,7 +931,13 @@
     </section>
 
     <section class="panel">
-      <span class="phone-field-label">Números</span>
+      <div class="field-header-row">
+        <span class="phone-field-label">Números</span>
+        <button type="button" class="import-csv-btn" id="btnImportCsv">
+          <span class="import-icon">📥</span> Importar CSV
+        </button>
+        <input type="file" id="csvInput" accept=".csv" style="display:none" />
+      </div>
       <div class="phone-input-wrap">
         <div class="phone-input-bar">
           <button
@@ -942,7 +974,7 @@
             </div>
             <textarea
               id="message"
-              placeholder="Digite a Mensagem"
+              placeholder="Digite a Mensagem&#10;Dica: use {Oi|Olá} para variações."
               spellcheck="true"
             ></textarea>
             <div class="msg-toolbar">
