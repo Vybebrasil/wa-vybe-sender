@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Disparador</title>
+  <style>
+    :root {
+      --bg: #0c0f14;
+      --surface: #151b24;
+      --surface2: #1e2733;
+      --border: #2a3544;
+      --text: #eef2f7;
+      --muted: #8b9aad;
+      --accent: #25d366;
+      --accent-dim: #1eb85a;
+      --danger: #f87171;
+      --warn: #fbbf24;
+      --radius: 12px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      width: 400px;
+      min-height: 560px;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      background: radial-gradient(120% 80% at 0% 0%, rgba(37, 211, 102, 0.12), transparent),
+        linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+    }
+    .header h1 {
+      margin: 0 0 4px;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+    .header p {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(37, 211, 102, 0.14);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    main { padding: 14px 20px 20px; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .panel-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .stat {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    .stat .val {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .stat .val.ok { color: var(--accent); }
+    .stat .val.err { color: var(--danger); }
+    .stat .lbl {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.25;
+    }
+    .progress-wrap { margin-top: 14px; }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .progress-track {
+      height: 9px;
+      background: var(--surface2);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+      border-radius: 999px;
+      transition: width 0.35s ease;
+    }
+    /* ——— Antibloqueio ——— */
+    .anti-panel {
+      border-color: rgba(37, 211, 102, 0.25);
+      background: linear-gradient(165deg, rgba(37, 211, 102, 0.06) 0%, var(--surface) 38%);
+    }
+    .anti-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .anti-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .anti-shield { font-size: 20px; line-height: 1; }
+    .anti-h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .anti-help {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: help;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .anti-toggle-detail {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 4px 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .anti-toggle-detail:hover { color: #4ade80; }
+    .anti-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .anti-pill {
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      transition: background 0.15s, color 0.15s;
+    }
+    .anti-pill:hover { background: rgba(37, 211, 102, 0.12); }
+    .anti-pill.active {
+      background: var(--accent);
+      color: #052e16;
+      border-color: var(--accent);
+    }
+    .anti-details.hidden { display: none; }
+    .anti-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 16px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(37, 211, 102, 0.2);
+    }
+    @media (max-width: 420px) {
+      .anti-cols { grid-template-columns: 1fr; }
+    }
+    .anti-col { min-width: 0; }
+    .anti-col-right {
+      border-left: 1px solid rgba(37, 211, 102, 0.2);
+      padding-left: 16px;
+    }
+    @media (max-width: 420px) {
+      .anti-col-right { border-left: none; padding-left: 0; border-top: 1px solid rgba(37, 211, 102, 0.15); padding-top: 12px; }
+    }
+    .anti-switch {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      font-size: 11px;
+      line-height: 1.35;
+      color: var(--text);
+    }
+    .anti-switch:last-child { margin-bottom: 0; }
+    .anti-switch input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .anti-slider-ui {
+      flex-shrink: 0;
+      width: 36px;
+      height: 20px;
+      border-radius: 999px;
+      background: #3d4a5c;
+      position: relative;
+      transition: background 0.2s;
+    }
+    .anti-slider-ui::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .anti-switch input:checked + .anti-slider-ui {
+      background: var(--accent);
+    }
+    .anti-switch input:checked + .anti-slider-ui::after {
+      transform: translateX(16px);
+    }
+    .anti-switch input:disabled + .anti-slider-ui {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .anti-lbl { flex: 1; }
+    .anti-lbl strong { color: var(--accent); font-weight: 600; }
+    .anti-edit-link {
+      margin-left: 6px;
+      color: var(--accent);
+      font-size: 10px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .anti-sub {
+      margin: 8px 0 6px 46px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .anti-num-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-left: 46px;
+      margin-bottom: 4px;
+    }
+    .anti-num-row input {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 12px;
+    }
+    .anti-range-wrap {
+      margin-left: 46px;
+      margin-top: 6px;
+    }
+    .anti-range-wrap input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      accent-color: var(--accent);
+    }
+    .anti-range-wrap .dual {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .anti-range-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    /* Barra de números estilo “telefone internacional” (referência clara) */
+    .phone-field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .phone-input-wrap {
+      position: relative;
+      z-index: 2;
+    }
+    .phone-input-bar {
+      display: flex;
+      align-items: stretch;
+      min-height: 96px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      overflow: visible;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .phone-input-bar:focus-within {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+    }
+    .country-selector {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px 0 14px;
+      border: none;
+      background: #ffffff;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      border-radius: 12px 0 0 12px;
+      position: relative;
+    }
+    .country-selector:hover {
+      background: #f9fafb;
+    }
+    .country-selector:focus {
+      outline: none;
+    }
+    .country-selector .flag {
+      font-size: 20px;
+      line-height: 1;
+    }
+    .country-selector .dial {
+      letter-spacing: 0.02em;
+    }
+    .country-selector .chev {
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid #6b7280;
+      margin-left: 2px;
+    }
+    .phone-divider {
+      width: 1px;
+      align-self: stretch;
+      margin: 10px 0;
+      background: #e5e7eb;
+      flex-shrink: 0;
+    }
+    textarea.phone-numbers-field {
+      flex: 1;
+      min-width: 0;
+      min-height: 96px;
+      border: none;
+      border-radius: 0 12px 12px 0;
+      padding: 12px 14px;
+      margin: 0;
+      background: transparent;
+      color: #111827;
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.45;
+      resize: vertical;
+    }
+    textarea.phone-numbers-field::placeholder {
+      color: #9ca3af;
+    }
+    textarea.phone-numbers-field:focus {
+      outline: none;
+    }
+    .country-menu {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 6px);
+      z-index: 50;
+      min-width: 220px;
+      max-height: 220px;
+      overflow-y: auto;
+      margin: 0;
+      padding: 6px;
+      list-style: none;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+    }
+    .country-menu.hidden {
+      display: none;
+    }
+    .country-menu li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #111827;
+    }
+    .country-menu li:hover,
+    .country-menu li[aria-selected="true"] {
+      background: #f3f4f6;
+    }
+    .country-menu .m-flag {
+      font-size: 18px;
+    }
+    .country-menu .m-dial {
+      font-weight: 700;
+      color: #059669;
+      min-width: 52px;
+    }
+    /* ——— Compositor de mensagem (tema escuro alinhado aos painéis) ——— */
+    .msg-composer-wrap { margin-top: 10px; }
+    .msg-composer {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .msg-composer:focus-within {
+      border-color: rgba(37, 211, 102, 0.35);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 0 0 2px rgba(37, 211, 102, 0.12);
+    }
+    .msg-composer-top {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 6px 8px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .msg-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      padding: 0;
+      color: var(--muted);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .msg-icon-btn:hover {
+      background: #2a3442;
+      border-color: rgba(37, 211, 102, 0.45);
+      color: var(--accent);
+    }
+    textarea#message {
+      width: 100%;
+      min-height: 108px;
+      max-height: 220px;
+      border: none;
+      border-radius: 0;
+      padding: 10px 14px 8px;
+      margin: 0;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.45;
+      resize: vertical;
+    }
+    textarea#message::placeholder {
+      color: var(--muted);
+      opacity: 0.85;
+    }
+    textarea#message:focus {
+      outline: none;
+    }
+    .msg-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px 10px 10px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .msg-tbtn {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      padding: 0;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .msg-tbtn:hover {
+      background: rgba(37, 211, 102, 0.12);
+      border-color: var(--accent);
+      color: #4ade80;
+    }
+    .msg-tbtn small {
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .msg-toolbar-spacer {
+      flex: 1;
+      min-width: 4px;
+    }
+    /* Emoji popover */
+    .msg-popover {
+      display: none;
+      position: absolute;
+      z-index: 80;
+      width: 260px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    }
+    .msg-popover.open { display: block; }
+    .msg-popover-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      font-size: 18px;
+    }
+    .msg-popover-grid button {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 4px;
+    }
+    .msg-popover-grid button:hover {
+      background: var(--surface2);
+    }
+    .msg-composer-pos { position: relative; }
+    /* Modais */
+    .msg-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .msg-modal-backdrop.open {
+      display: flex;
+    }
+    .msg-modal {
+      width: 100%;
+      max-width: 340px;
+      max-height: 85vh;
+      overflow: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      color: var(--text);
+    }
+    .msg-modal h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+    .msg-modal-close {
+      float: right;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .msg-preview-body {
+      white-space: pre-wrap;
+      font-size: 12px;
+      line-height: 1.45;
+      padding: 10px;
+      border-radius: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .msg-tpl-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .msg-tpl-item {
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .msg-tpl-item:hover {
+      border-color: var(--accent);
+    }
+    .hint code {
+      font-size: 10px;
+      background: rgba(37, 211, 102, 0.1);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+    .hint {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.45;
+    }
+    .log-box {
+      height: 150px;
+      overflow-y: auto;
+      background: #080a0e;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .log-line { margin-bottom: 5px; word-break: break-word; }
+    .log-line.info { color: #94a3b8; }
+    .log-line.ok { color: var(--accent); }
+    .log-line.err { color: var(--danger); }
+    .log-line.warn { color: var(--warn); }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: background 0.15s, opacity 0.15s, transform 0.05s;
+    }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.42; cursor: not-allowed; }
+    .btn-primary {
+      background: var(--accent);
+      color: #052e16;
+    }
+    .btn-primary:hover:not(:disabled) { background: #2ee576; }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: #2a3442; }
+    .btn-warn {
+      background: rgba(251, 191, 36, 0.12);
+      color: var(--warn);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+    }
+    .btn-warn:hover:not(:disabled) { background: rgba(251, 191, 36, 0.2); }
+    .btn-export {
+      width: 100%;
+      margin-top: 10px;
+      background: linear-gradient(180deg, #243042, #1a222c);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-export:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .status-pill {
+      margin-top: 12px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      text-align: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .status-pill.running { border-color: rgba(37, 211, 102, 0.45); color: var(--accent); }
+    .status-pill.paused { border-color: rgba(251, 191, 36, 0.45); color: var(--warn); }
+    .status-pill.idle { color: var(--muted); }
+    /* ——— Anexo de imagem ——— */
+    .attach-preview-wrap {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border: 1px solid rgba(37, 211, 102, 0.3);
+      border-radius: 10px;
+    }
+    .attach-preview-wrap.has-image { display: flex; }
+    .attach-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .attach-info { flex: 1; min-width: 0; }
+    .attach-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .attach-size {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .attach-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(37, 211, 102, 0.14);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .attach-remove-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      background: rgba(248, 113, 113, 0.08);
+      color: var(--danger);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .attach-remove-btn:hover { background: rgba(248, 113, 113, 0.22); }
+    #attachInput { display: none; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Disparador WhatsApp</h1>
+    <p>Dashboard profissional · ritmo humano · relatório exportável</p>
+    <span class="badge">Pro Suite</span>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="panel-title">Monitor de progresso</div>
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="val" id="statTotal">0</div>
+          <div class="lbl">Total na fila</div>
+        </div>
+        <div class="stat">
+          <div class="val ok" id="statSent">0</div>
+          <div class="lbl">Enviados com sucesso</div>
+        </div>
+        <div class="stat">
+          <div class="val err" id="statFailed">0</div>
+          <div class="lbl">Falhas</div>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-meta">
+          <span>Progresso</span>
+          <span id="progressLabel">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+      <p class="hint">Intervalos, blocos e variações de mensagem ficam no painel <strong>Antibloqueio</strong> abaixo.</p>
+    </section>
+
+    <section class="panel anti-panel" id="antiPanel">
+      <div class="anti-head">
+        <div class="anti-title-row">
+          <span class="anti-shield" aria-hidden="true">🛡️</span>
+          <h2 class="anti-h2" id="antiTitle">Antibloqueio: Equilibrado</h2>
+          <button type="button" class="anti-help" id="antiHelp" title="Perfis ajustam automaticamente tempos e opções. Combine com intervalos maiores para reduzir risco de limitação no WhatsApp.">?</button>
+        </div>
+        <button type="button" class="anti-toggle-detail" id="antiToggleDetail">Ocultar detalhe ▲</button>
+      </div>
+      <div class="anti-presets" id="antiPresets">
+        <button type="button" class="anti-pill" data-preset="conservative">Conservador</button>
+        <button type="button" class="anti-pill active" data-preset="balanced">Equilibrado</button>
+        <button type="button" class="anti-pill" data-preset="fast">Rápido</button>
+      </div>
+      <div class="anti-details" id="antiDetails">
+        <div class="anti-cols">
+          <div class="anti-col">
+            <label class="anti-switch">
+              <input type="checkbox" id="antiBlocks" />
+              <span class="anti-slider-ui"></span>
+              <span class="anti-lbl">Enviar por blocos (pausa longa entre blocos)</span>
+            </label>
+            <p class="anti-sub" id="antiBlockSummary">Blocos de 100 mensagens · 2 min entre blocos</p>
+            <div class="anti-num-row">
+              <div>
+                <span class="anti-range-label">Msgs / bloco</span>
+                <input type="number" id="antiBlockSize" min="5" max="500" value="100" />
+              </div>
+              <div>
+                <span class="anti-range-label">Espera (min)</span>
+                <input type="number" id="antiBlockWait" min="1" max="120" value="2" />
+              </div>
+            </div>
+          </div>
+          <div class="anti-col anti-col-right">
+            <label class="anti-switch">
+              <input type="checkbox" id="antiDedupe" checked />
+              <span class="anti-slider-ui"></span>
+              <span class="anti-lbl">Eliminação de duplicados <span class="anti-edit-link" id="antiDedupeEdit" role="button" tabindex="0">(Editar)</span></span>
+            </label>
+            <label class="anti-switch">
+              <input type="checkbox" id="antiRandom" checked />
+              <span class="anti-slider-ui"></span>
+              <span class="anti-lbl">Randomização de mensagens</span>
+            </label>
+            <label class="anti-switch">
+              <input type="checkbox" id="antiIntervalOn" checked />
+              <span class="anti-slider-ui"></span>
+              <span class="anti-lbl">Tempo aleatório entre envios: <strong id="antiInterSummary">de 5 seg. a 15 seg.</strong></span>
+            </label>
+            <div class="anti-range-wrap">
+              <span class="anti-range-label">Mínimo (s)</span>
+              <input type="range" id="antiMinSec" min="0.5" max="120" step="0.5" value="5" />
+              <span class="anti-range-label" style="margin-top:8px">Máximo (s)</span>
+              <input type="range" id="antiMaxSec" min="0.5" max="180" step="0.5" value="15" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <span class="phone-field-label">Números</span>
+      <div class="phone-input-wrap">
+        <div class="phone-input-bar">
+          <button
+            type="button"
+            class="country-selector"
+            id="countryBtn"
+            data-dial="55"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-label="Código do país"
+          >
+            <span class="flag" id="countryFlag" aria-hidden="true">🇧🇷</span>
+            <span class="dial" id="dialLabel">+55</span>
+            <span class="chev" aria-hidden="true"></span>
+          </button>
+          <div class="phone-divider" aria-hidden="true"></div>
+          <textarea
+            id="numbers"
+            class="phone-numbers-field"
+            placeholder="Inserir números&#10;Ex.: 11999999999, Paulo (uma linha por contato)"
+            rows="4"
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <ul class="country-menu hidden" id="countryMenu" role="listbox" aria-label="País"></ul>
+      </div>
+      <p class="hint">O prefixo <strong id="dialHint">+55</strong> é aplicado quando o número não inclui o código do país. Use vírgula e nome para <code>{nome}</code> na mensagem.</p>
+      <span class="phone-field-label" style="margin-top:14px">Mensagem</span>
+      <div class="msg-composer-wrap">
+        <div class="msg-composer-pos">
+          <div class="msg-composer">
+            <div class="msg-composer-top">
+              <button type="button" class="msg-icon-btn" id="btnPreviewMsg" title="Pré-visualizar">👁</button>
+            </div>
+            <textarea
+              id="message"
+              placeholder="Digite a Mensagem"
+              spellcheck="true"
+            ></textarea>
+            <div class="msg-toolbar">
+              <button type="button" class="msg-tbtn" id="btnEmoji" title="Inserir emoji">😀</button>
+              <button type="button" class="msg-tbtn" id="fmtBold" title="Negrito (*texto*)"><small>B</small></button>
+              <button type="button" class="msg-tbtn" id="fmtItalic" title="Itálico (_texto_)"><small>I</small></button>
+              <button type="button" class="msg-tbtn" id="fmtStrike" title="Riscado (~texto~)"><span style="text-decoration:line-through;font-weight:800">S</span></button>
+              <span class="msg-toolbar-spacer"></span>
+              <button type="button" class="msg-tbtn" id="btnAttach" title="Anexar imagem (será enviada como legenda)">📎</button>
+              <button type="button" class="msg-tbtn" id="btnLoadTpl" title="Usar modelo salvo">📄</button>
+              <button type="button" class="msg-tbtn" id="btnSaveTpl" title="Salvar como modelo">📄<small>+</small></button>
+            </div>
+            <input type="file" id="attachInput" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" />
+          </div>
+          <div class="msg-popover" id="emojiPopover" aria-label="Emojis">
+            <div class="msg-popover-grid" id="emojiGrid"></div>
+          </div>
+        </div>
+        <div class="attach-preview-wrap" id="attachPreviewWrap">
+          <img class="attach-thumb" id="attachThumb" src="" alt="Preview" />
+          <div class="attach-info">
+            <div class="attach-name" id="attachName">imagem.jpg</div>
+            <div class="attach-size" id="attachSize"></div>
+            <div class="attach-badge">📎 Imagem anexada</div>
+          </div>
+          <button type="button" class="attach-remove-btn" id="btnAttachRemove" title="Remover imagem">×</button>
+        </div>
+        <p class="hint" style="margin-top:8px">
+          Formatação do WhatsApp no texto: <code>*negrito*</code> <code>_itálico_</code> <code>~riscado~</code>.
+          <br/>📎 Com imagem: o texto vira a <strong>legenda</strong> da imagem.
+        </p>
+      </div>
+
+      <div class="msg-modal-backdrop" id="previewBackdrop" role="dialog" aria-modal="true">
+        <div class="msg-modal">
+          <button type="button" class="msg-modal-close" data-close="preview" aria-label="Fechar">×</button>
+          <h3>Pré-visualização (WhatsApp)</h3>
+          <div class="msg-preview-body" id="previewBody"></div>
+        </div>
+      </div>
+      <div class="msg-modal-backdrop" id="tplBackdrop" role="dialog" aria-modal="true">
+        <div class="msg-modal">
+          <button type="button" class="msg-modal-close" data-close="tpl" aria-label="Fechar">×</button>
+          <h3>Modelos salvos</h3>
+          <div class="msg-tpl-list" id="tplList"></div>
+          <p class="hint" style="margin-top:10px">Toque em um modelo para carregar no editor.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Log em tempo real</div>
+      <div class="log-box" id="logBox"></div>
+      <div class="actions">
+        <button type="button" class="btn-primary" id="btnStart">Iniciar</button>
+        <button type="button" class="btn-secondary" id="btnPause" disabled>Pausar</button>
+        <button type="button" class="btn-warn" id="btnRestart" disabled>Reiniciar</button>
+      </div>
+      <button type="button" class="btn-export" id="btnExport" disabled>Baixar relatório (CSV)</button>
+      <div class="status-pill idle" id="statusPill">Pronto para iniciar</div>
+    </section>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

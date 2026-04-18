@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Sender WP-Vybe",
+  "version": "2.3.5",
+  "description": "Disparos humanizados para WhatsApp Web com dashboard, relatório CSV e retomada.",
+  "permissions": ["storage", "tabs", "windows", "scripting", "clipboardWrite"],
+  "host_permissions": ["https://web.whatsapp.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
